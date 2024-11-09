@@ -269,7 +269,7 @@ func googleResultParsing(response *http.Response, rank int) ([]SearchResult, err
 	rank++
 	for i := range sel.Nodes {
 		item := sel.Eq(i)
-		fmt.Println("ite,",item.Html())
+		fmt.Println("ite,",item)
 		linkTag := item.Find("a")
 		link, _ := linkTag.Attr("href")
 		titleTag := item.Find("h3.r")
