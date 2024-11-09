@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 var googleDomains = map[string]string{
@@ -218,6 +219,16 @@ type SearchResult struct {
 	ResultDesc  string
 }
 
+type JobSearchResult struct {
+	ResultRank     int
+	JobTitle       string
+	JobEmployer    string
+	JobLocation    string
+	JobListingSite string
+	JobType        string
+	JobPosting     string
+}
+
 var userAgents = []string{
 	"Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36 RuxitSynthetic/1.0 v3441231499621951495 t4951733999716571247",
 	"Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36 RuxitSynthetic/1.0 v8897145160182129539 t6281935149377429786",
@@ -255,40 +266,57 @@ func buildGoogleUrls(searchTerm, countryCode, languageCode string, pages, count 
 
 }
 
-func googleResultParsing(response *http.Response, rank int) ([]SearchResult, error) {
+func googleResultParsing(response *http.Response, rank int) ([]JobSearchResult, error) {
 	doc, err := goquery.NewDocumentFromReader(response.Body)
 
 	if err != nil {
 		return nil, err
 	}
 
-	results := []SearchResult{}
+	//results := []SearchResult{}
+	results := []JobSearchResult{}
 	//sel := doc.Find("div.g")
-	sel := doc.Find("img")
-	fmt.Println("length",len(sel.Nodes))
+	sel := doc.Find(".MQUd2b")
+	fmt.Println("length", len(sel.Nodes))
 	rank++
 	for i := range sel.Nodes {
 		item := sel.Eq(i)
-		fmt.Println("ite,",item)
-		linkTag := item.Find("a")
-		link, _ := linkTag.Attr("href")
-		titleTag := item.Find("h3.r")
-		descTag := item.Find("span.st")
-		desc := descTag.Text()
-		title := titleTag.Text()
-		link = strings.Trim(link, " ")
-
-		if link != "" && link != "#" && !strings.HasPrefix(link, "/") {
-			result := SearchResult{
-				rank,
-				link,
-				title,
-				desc,
-			}
-			results = append(results, result)
-			rank++
-		}
+		jobtitleTag := item.Find(".tNxQIb")
+		jobtitle := jobtitleTag.Text()
+		jobemployerTag := item.Find(".a3jPc")
+		jobemployer := jobemployerTag.Text()
+		joblistTag:=item.Find(".FqK3wc")
+		joblist := joblistTag.Text()
+		resulT := strings.Split(joblist, " • ")
+		joblocation := resulT[0]
+		jobPosting:=resulT[1]
+		result := JobSearchResult{rank, jobtitle, jobemployer, joblocation,jobPosting,"", ""}
+		results = append(results, result)
+		rank++
 	}
+	// for i := range sel.Nodes {
+	// 	item := sel.Eq(i)
+	// 	templi := item.Find("li")
+	// 	fmt.Println("ite,",templi)
+	// 	linkTag := item.Find("a")
+	// 	link, _ := linkTag.Attr("href")
+	// 	titleTag := item.Find("h3.r")
+	// 	descTag := item.Find("span.st")
+	// 	desc := descTag.Text()
+	// 	title := titleTag.Text()
+	// 	link = strings.Trim(link, " ")
+
+	// 	if link != "" && link != "#" && !strings.HasPrefix(link, "/") {
+	// 		result := SearchResult{
+	// 			rank,
+	// 			link,
+	// 			title,
+	// 			desc,
+	// 		}
+	// 		results = append(results, result)
+	// 		rank++
+	// 	}
+	// }
 	return results, err
 
 }
@@ -305,14 +333,14 @@ func getScrapeClient(proxyString interface{}) *http.Client {
 	}
 }
 
-func GoogleScrape(searchTerm, countryCode, languageCode string, proxyString interface{}, pages, count, backoff int) ([]SearchResult, error) {
-	results := []SearchResult{}
+func GoogleScrape(searchTerm, countryCode, languageCode string, proxyString interface{}, pages, count, backoff int) ([]JobSearchResult, error) {
+	results := []JobSearchResult{}
 	resultCounter := 0
 	googlePages, err := buildGoogleUrls(searchTerm, countryCode, languageCode, pages, count)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("page requested",googlePages)
+	fmt.Println("page requested", googlePages)
 	t := []string{"https://www.google.com/search?q=frontend+roles+in+hyderabad&udm=8&fbs=AEQNm0Aa4sjWe7Rqy32pFwRj0UkWMsfQD7WCPyiYA6ksw1JggSMY45YfI-R8Fjyi6BeertZ78jGnIRp3czOw1dGdRfpzER3f-XpwHMhZWO6CF7K42TWfy4ANlTvYYiymk8aPi3O5SL5VOSG5JIeMAmAmqFRnWyih1Lga_ywDXDpHRe1szHd5kh6N8kjYvwedLsqHM8HbBOv1tz0OpMCRuI8pzTPseCh65Q&sa=X&ved=2ahUKEwjInZbNqcyJAxX0rlYBHRzBOhoQs6gLegQIExAB&biw=1920&bih=899&dpr=1&jbr=sep:0#vhid=vt%3D20/docid%3DeoEW2Fru6pJw8dSbAAAAAA%3D%3D&vssid=jobs-detail-viewer"}
 	for _, page := range t {
 		fmt.Println(page)
@@ -353,10 +381,10 @@ func scrapeClientRequest(searchURL string, proxyString interface{}) (*http.Respo
 
 func main() {
 	res, err := GoogleScrape("frontend roles in hyderabad", "com", "en", nil, 1, 30, 10)
-	
+
 	if err == nil {
 		for _, res := range res {
-			fmt.Println("Final=>",res)
+			fmt.Println("Final=>", res)
 		}
 	}
 }
